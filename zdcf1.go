@@ -54,8 +54,49 @@ func UnmarshalZdcf1(bytes []byte) (*Zdcf1, error) {
 	}
 	if zdcf1.Version < 1 || 2 <= zdcf1.Version {
 		return nil, errors.New(fmt.Sprintf(
-			"invalid zdcf1 version: %f",
+			"unsupported zdcf1 version: %f",
 			zdcf1.Version))
 	}
 	return &zdcf1, err
+}
+
+func (conf *Zdcf1) Update(other *Zdcf1) error {
+	if other.Version < 1 || 2 <= other.Version {
+		return errors.New(fmt.Sprintf(
+			"unsupported zdcf1 version: %f",
+			other.Version))
+	}
+	for appName, appConf1 := range other.Apps {
+		if appConf0, already := conf.Apps[appName]; !already {
+			conf.Apps[appName] = appConf1
+		} else {
+			// TODO: context? gozmq provides no API for this.
+			for devName, devConf1 := range appConf1.Devices {
+				if devConf0, already := appConf0.Devices[devName]; !already {
+					appConf0.Devices[devName] = devConf1
+				} else {
+					for sockName, sockConf1 := range devConf1.Sockets {
+						if sockConf0, already := devConf0.Sockets[sockName]; !already {
+							devConf0.Sockets[sockName] = sockConf1
+						} else {
+							if len(sockConf1.Type) > 0 {
+								sockConf0.Type = sockConf1.Type
+							}
+							if sockConf1.Options != nil {
+								// TODO: do a proper update here!
+								sockConf0.Options = sockConf1.Options
+							}
+							if len(sockConf1.Bind) > 0 {
+								sockConf0.Bind = sockConf1.Bind
+							}
+							if len(sockConf1.Connect) > 0 {
+								sockConf0.Connect = sockConf1.Connect
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return nil
 }

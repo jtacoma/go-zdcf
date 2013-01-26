@@ -1,6 +1,9 @@
 package zdcf
 
 import (
+	"errors"
+	"fmt"
+
 	zmq "github.com/alecthomas/gozmq"
 )
 
@@ -12,22 +15,30 @@ type App struct {
 }
 
 // Create the named App based on the specified configuration.
-func NewApp(appName string, confSource interface{}) (app *App, err error) {
+func NewApp(appName string, sources ...interface{}) (app *App, err error) {
 	var (
 		conf    *Zdcf1
 		appConf *App1
 	)
-	switch confSource.(type) {
-	case string:
-		conf, err = UnmarshalZdcf1([]byte(confSource.(string)))
-		if err != nil {
-			return nil, err
+	for _, source := range sources {
+		var next *Zdcf1
+		switch source.(type) {
+		case string:
+			next, err = UnmarshalZdcf1([]byte(source.(string)))
+			if err != nil {
+				return nil, err
+			}
+		case *Zdcf1:
+			next = source.(*Zdcf1)
 		}
-	case *Zdcf1:
-		conf = confSource.(*Zdcf1)
-	}
-	if conf == nil {
-		return nil, Error("unsupported configuration source.")
+		if next == nil {
+			return nil, errors.New("unsupported configuration source.")
+		}
+		if conf == nil {
+			conf = next
+		} else {
+			conf.Update(next)
+		}
 	}
 	if context, err := zmq.NewContext(); err != nil {
 		return nil, err
@@ -124,7 +135,7 @@ func (d *DeviceInfo) OpenSocket(name string) (sock zmq.Socket, err error) {
 	var sockInfo *SocketInfo
 	var ok bool
 	if sockInfo, ok = d.sockets[name]; !ok {
-		return nil, Error("no such socket.")
+		return nil, errors.New("no such socket.")
 	}
 	return sockInfo.Open()
 }
@@ -168,42 +179,48 @@ func (s *SocketInfo) Open() (sock zmq.Socket, err error) {
 		app        *App
 	)
 	if deviceInfo = s.device; deviceInfo == nil {
-		return nil, Error("no device info.")
+		return nil, errors.New("no device info.")
 	}
 	if app = deviceInfo.app; app == nil {
-		return nil, Error("device info has no app.")
+		return nil, errors.New("device info has no app.")
 	}
 	if sock, err = app.context.NewSocket(s.Type); err != nil {
-		return nil, err
+		return nil, errors.New(fmt.Sprintf("could not create socket: %s", err.Error()))
 	}
 	for opt, val := range s.IntOptions {
 		if err = sock.SetSockOptInt(opt, val); err != nil {
-			return nil, err
+			return nil, errors.New(fmt.Sprintf("could not set option %d = %v : %s",
+				opt, val, err.Error()))
 		}
 	}
 	for opt, val := range s.Int64Options {
 		if err = sock.SetSockOptInt64(opt, val); err != nil {
-			return nil, err
+			return nil, errors.New(fmt.Sprintf("could not set option %d = %v : %s",
+				opt, val, err.Error()))
 		}
 	}
 	for opt, val := range s.UInt64Options {
 		if err = sock.SetSockOptUInt64(opt, val); err != nil {
-			return nil, err
+			return nil, errors.New(fmt.Sprintf("could not set option %d = %v : %s",
+				opt, val, err.Error()))
 		}
 	}
 	for opt, val := range s.StringOptions {
 		if err = sock.SetSockOptString(opt, val); err != nil {
-			return nil, err
+			return nil, errors.New(fmt.Sprintf("could not set option %d = %v : %s",
+				opt, val, err.Error()))
 		}
 	}
 	for _, addr := range s.Bind {
 		if err = sock.Bind(addr); err != nil {
-			return
+			return nil, errors.New(fmt.Sprintf("could not bind to %v %s",
+				addr, err.Error()))
 		}
 	}
 	for _, addr := range s.Connect {
 		if err = sock.Connect(addr); err != nil {
-			return
+			return nil, errors.New(fmt.Sprintf("could not connect to %v %s",
+				addr, err.Error()))
 		}
 	}
 	return

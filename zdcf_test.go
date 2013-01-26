@@ -48,7 +48,7 @@ func TestZdcf(t *testing.T) {
 		t.Fatalf("failed to create device: main")
 	}
 	frontend, err := main.OpenSocket("frontend")
-	if err!=nil {
+	if err != nil {
 		t.Fatalf(err.Error())
 	}
 	defer frontend.Close()
@@ -57,7 +57,7 @@ func TestZdcf(t *testing.T) {
 		t.Fatalf("failed to find socket info: backend")
 	}
 	backend, err := backendInfo.Open()
-	if err!=nil {
+	if err != nil {
 		t.Fatalf("failed to open socket: backend")
 	}
 	backend.Close()

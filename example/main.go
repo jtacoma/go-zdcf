@@ -6,7 +6,7 @@ import (
 	zdcf "github.com/jtacoma/gozdcf"
 )
 
-var conf = &zdcf.Zdcf1{
+var defaults = &zdcf.Zdcf1{
 	Version: 1.0,
 	Apps: map[string]*zdcf.App1{
 		"listener": &zdcf.App1{
@@ -23,15 +23,10 @@ var conf = &zdcf.Zdcf1{
 							Options: &zdcf.Options1{
 								Hwm:  1000,
 								Swap: 25000000,
-								Subscribe: []string{
-									"1234 ",
-									"1235 ",
-								},
 							},
-							Bind: []string{"tcp://eth0:5555"},
 						},
 						"backend": &zdcf.Socket1{
-							Bind: []string{"tcp://eth0:5556"},
+							Type: "PUB",
 						},
 					},
 				},
@@ -40,8 +35,31 @@ var conf = &zdcf.Zdcf1{
 	},
 }
 
+var custom = `{
+	"version": 1.0001,
+	"apps": {
+		"listener": {
+			"devices": {
+				"main": {
+					"sockets": {
+						"frontend": {
+							"option": {
+								"subscribe": ["1234 ", "1235 "]
+							},
+							"bind": ["tcp://127.0.0.1:5555"]
+						},
+						"backend": {
+							"connect": ["tcp://127.0.0.1:5556"]
+						}
+					}
+				}
+			}
+		}
+	}
+}`
+
 func main() {
-	if listener, err := zdcf.NewApp("listener", conf); err != nil {
+	if listener, err := zdcf.NewApp("listener", defaults, custom); err != nil {
 		panic(err)
 	} else if main, ok := listener.Device("main"); !ok {
 		panic("failed to load device.")
