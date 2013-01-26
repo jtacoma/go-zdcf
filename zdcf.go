@@ -19,6 +19,7 @@ func NewApp(appName string, sources ...interface{}) (app *App, err error) {
 	var (
 		conf    *Zdcf1
 		appConf *App1
+		ok      bool
 	)
 	for _, source := range sources {
 		var next *Zdcf1
@@ -49,7 +50,10 @@ func NewApp(appName string, sources ...interface{}) (app *App, err error) {
 			devices: map[string]*DeviceInfo{},
 		}
 	}
-	appConf = conf.Apps[appName]
+	appConf, ok = conf.Apps[appName]
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("no such app: %s", appName))
+	}
 	// TODO: context options (gozmq has no API for this yet)
 	for devName, devConf := range appConf.Devices {
 		devInfo := &DeviceInfo{
@@ -106,6 +110,12 @@ func NewApp(appName string, sources ...interface{}) (app *App, err error) {
 func (a *App) Device(name string) (devInfo *DeviceInfo, ok bool) {
 	devInfo, ok = a.devices[name]
 	return
+}
+
+func (a *App) ForDevices(do func(*DeviceInfo)) {
+	for _, devInfo := range a.devices {
+		do(devInfo)
+	}
 }
 
 // Close the App, including its ZMQ context.
