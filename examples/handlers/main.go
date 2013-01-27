@@ -1,67 +1,70 @@
 package main
 
 import (
-	"fmt"
+	"log"
 
 	zdcf "github.com/jtacoma/gozdcf"
 )
 
-var defaults = &zdcf.Zdcf1{
-	Version: 1.0,
-	Apps: map[string]*zdcf.App1{
-		"handlers": &zdcf.App1{
-			Devices: map[string]*zdcf.Device1{
-				"server": &zdcf.Device1{
-					Type: "echo_service",
-					Sockets: map[string]*zdcf.Socket1{
-						"frontend": &zdcf.Socket1{
-							Type: "REP",
-							Bind: []string{"tcp://127.0.0.1:5555"},
-						},
-					},
+var defaults = `{
+	"version": 1.0,
+	"apps": {
+		"handlers": {
+			"devices": {
+				"server": {
+					"type": "echo_service",
+					"sockets": {
+						"frontend": {
+							"type": "REP",
+							"bind": ["tcp://127.0.0.1:5555"]
+						}
+					}
 				},
-				"client": &zdcf.Device1{
-					Type: "echo_once",
-					Sockets: map[string]*zdcf.Socket1{
-						"backend": &zdcf.Socket1{
-							Type:    "REQ",
-							Connect: []string{"tcp://127.0.0.1:5555"},
-						},
-					},
-				},
-			},
-		},
-	},
-}
+				"client": {
+					"type": "echo_once",
+					"sockets": {
+						"backend": {
+							"type":    "REQ",
+							"connect": ["tcp://127.0.0.1:5555"]
+						}
+					}
+				}
+			}
+		}
+	}
+}`
 
 func EchoService(dev *zdcf.DeviceContext) {
-	if front, err := dev.OpenSocket("frontend"); err != nil {
-		panic(err)
-	} else {
-		defer front.Close()
-		for {
-			msg, err := front.Recv(0)
-			if err != nil {
-				panic(err.Error())
-			}
-			front.Send(msg, 0)
+	front, err := dev.OpenSocket("frontend")
+	if err != nil {
+		log.Println("error: echo service: no frontend socket:", err.Error())
+		return
+	}
+	defer front.Close()
+	for {
+		msg, err := front.Recv(0)
+		if err != nil {
+			log.Println("error: echo service:", err.Error())
+			return
 		}
+		front.Send(msg, 0)
 	}
 }
 
 func EchoClientOnce(dev *zdcf.DeviceContext) {
-	if back, err := dev.OpenSocket("backend"); err != nil {
-		panic(err)
-	} else {
-		defer back.Close()
-		back.Send([]byte("Echo!"), 0)
-		msg, err := back.Recv(0)
-		if err != nil {
-			panic(err.Error())
-		}
-		fmt.Println(string(msg))
-		done <- 1
+	back, err := dev.OpenSocket("backend")
+	if err != nil {
+		log.Println("error: echo client: no backend socket:", err.Error())
+		return
 	}
+	defer back.Close()
+	back.Send([]byte("Echo!"), 0)
+	msg, err := back.Recv(0)
+	if err != nil {
+		log.Println("error: echo client:", err.Error())
+	}
+	log.Println("debug: echo client: message received:", string(msg))
+	done <- 1
 }
 
 var done = make(chan int)
@@ -72,13 +75,15 @@ var handlers = map[string]func(*zdcf.DeviceContext){
 }
 
 func main() {
-	listener, err := zdcf.NewApp("handlers", defaults)
+	app, err := zdcf.NewApp("handlers", defaults)
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
-	listener.ForDevices(func(dev *zdcf.DeviceContext) {
+	app.ForDevices(func(dev *zdcf.DeviceContext) {
 		if run, ok := handlers[dev.Type()]; ok {
 			go run(dev)
+		} else {
+			log.Println("error: unrecognized device type:", dev.Type())
 		}
 	})
 	<-done
