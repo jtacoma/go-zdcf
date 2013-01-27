@@ -14,7 +14,7 @@
 // type names to locate appropriate handlers.  See the examples directory for
 // more.
 //
-// For more about ØMQ or ZDCF see http://rfc.zeromq.org/spec:17 or
+// To learn about ØMQ or ZDCF see http://rfc.zeromq.org/spec:17 or
 // http://www.zeromq.org/, respectively.
 package gozdcf
 
@@ -35,20 +35,20 @@ type App struct {
 // Create the named App based on the specified configuration.
 func NewApp(appName string, sources ...interface{}) (app *App, err error) {
 	var (
-		conf    *Zdcf1
-		appConf *App1
+		conf    *zdcf1
+		appConf *app1
 		ok      bool
 	)
 	for _, source := range sources {
-		var next *Zdcf1
+		var next *zdcf1
 		switch source.(type) {
 		case string:
-			next, err = UnmarshalZdcf1([]byte(source.(string)))
+			next, err = unmarshalZdcf1([]byte(source.(string)))
 			if err != nil {
 				return nil, err
 			}
-		case *Zdcf1:
-			next = source.(*Zdcf1)
+		case *zdcf1:
+			next = source.(*zdcf1)
 		}
 		if next == nil {
 			return nil, errors.New("unsupported configuration source.")
@@ -56,7 +56,7 @@ func NewApp(appName string, sources ...interface{}) (app *App, err error) {
 		if conf == nil {
 			conf = next
 		} else {
-			conf.Update(next)
+			conf.update(next)
 		}
 	}
 	if context, err := zmq.NewContext(); err != nil {

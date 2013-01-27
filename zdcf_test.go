@@ -34,7 +34,7 @@ func TestZdcf(t *testing.T) {
 			}
 		}
 	}`)
-	conf, err := UnmarshalZdcf1(raw)
+	conf, err := unmarshalZdcf1(raw)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %s", err)
 	}

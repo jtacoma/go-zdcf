@@ -7,33 +7,33 @@ import (
 	zdcf "github.com/jtacoma/gozdcf"
 )
 
-var defaults = &zdcf.Zdcf1{
-	Version: 1.0,
-	Apps: map[string]*zdcf.App1{
-		"multidevice": &zdcf.App1{
-			Devices: map[string]*zdcf.Device1{
-				"server": &zdcf.Device1{
-					Type: "echo_service",
-					Sockets: map[string]*zdcf.Socket1{
-						"frontend": &zdcf.Socket1{
-							Type: "REP",
-							Bind: []string{"tcp://127.0.0.1:5555"},
-						},
-					},
+var defaults = `{
+	"version": 1.0,
+	"apps": {
+		"multidevice": {
+			"devices": {
+				"server": {
+					"type": "echo_service",
+					"sockets": {
+						"frontend": {
+							"type": "REP",
+							"bind": ["tcp://127.0.0.1:5555"]
+						}
+					}
 				},
-				"client": &zdcf.Device1{
-					Type: "echo_once",
-					Sockets: map[string]*zdcf.Socket1{
-						"backend": &zdcf.Socket1{
-							Type:    "REQ",
-							Connect: []string{"tcp://127.0.0.1:5555"},
-						},
-					},
-				},
-			},
-		},
-	},
-}
+				"client": {
+					"type": "echo_once",
+					"sockets": {
+						"backend": {
+							"type":    "REQ",
+							"connect": ["tcp://127.0.0.1:5555"]
+						}
+					}
+				}
+			}
+		}
+	}
+}`
 
 func EchoService(front zmq.Socket) {
 	defer front.Close()

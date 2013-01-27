@@ -6,34 +6,34 @@ import (
 	zdcf "github.com/jtacoma/gozdcf"
 )
 
-var defaults = &zdcf.Zdcf1{
-	Version: 1.0,
-	Apps: map[string]*zdcf.App1{
-		"listener": &zdcf.App1{
-			Context: &zdcf.Context1{
-				IoThreads: 1,
-				Verbose:   true,
+var defaults = `{
+	"version": 1.0,
+	"apps": {
+		"listener": {
+			"context": {
+				"iothreads": 1,
+				"verbose":   true
 			},
-			Devices: map[string]*zdcf.Device1{
-				"main": &zdcf.Device1{
-					Type: "zmq_queue",
-					Sockets: map[string]*zdcf.Socket1{
-						"frontend": &zdcf.Socket1{
-							Type: "SUB",
-							Options: &zdcf.Options1{
-								Hwm:  1000,
-								Swap: 25000000,
-							},
+			"devices": {
+				"main": {
+					"type": "zmq_queue",
+					"sockets": {
+						"frontend": {
+							"type": "SUB",
+							"options": {
+								"hwm":  1000,
+								"swap": 25000000
+							}
 						},
-						"backend": &zdcf.Socket1{
-							Type: "PUB",
-						},
-					},
-				},
-			},
-		},
-	},
-}
+						"backend": {
+							"type": "PUB"
+						}
+					}
+				}
+			}
+		}
+	}
+}`
 
 var custom = `{
 	"version": 1.0001,

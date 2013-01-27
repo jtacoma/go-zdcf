@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestUnmarshalZdcf1(t *testing.T) {
+func TestunmarshalZdcf1(t *testing.T) {
 	raw := []byte(`{
 		"version": 1.0001,
 		"apps": {
@@ -34,7 +34,7 @@ func TestUnmarshalZdcf1(t *testing.T) {
 			}
 		}
 	}`)
-	conf, err := UnmarshalZdcf1(raw)
+	conf, err := unmarshalZdcf1(raw)
 	if err != nil {
 		t.Fatalf("failed to unmarshal: %s", err)
 	}
@@ -80,22 +80,22 @@ func TestUnmarshalZdcf1(t *testing.T) {
 	}
 }
 
-func TestZdcf1_Update(t *testing.T) {
-	var conf = &Zdcf1{
+func TestZdcf1_update(t *testing.T) {
+	var conf = &zdcf1{
 		Version: 1.0,
-		Apps: map[string]*App1{
-			"listener": &App1{
-				Context: &Context1{
+		Apps: map[string]*app1{
+			"listener": &app1{
+				Context: &context1{
 					IoThreads: 1,
 					Verbose:   true,
 				},
-				Devices: map[string]*Device1{
-					"main": &Device1{
+				Devices: map[string]*device1{
+					"main": &device1{
 						Type: "zmq_queue",
-						Sockets: map[string]*Socket1{
-							"frontend": &Socket1{
+						Sockets: map[string]*socket1{
+							"frontend": &socket1{
 								Type: "SUB",
-								Options: &Options1{
+								Options: &options1{
 									Hwm:       1000,
 									Swap:      25000000,
 									Subscribe: []string{"4321 "},
@@ -108,20 +108,20 @@ func TestZdcf1_Update(t *testing.T) {
 			},
 		},
 	}
-	conf.Update(&Zdcf1{
+	conf.update(&zdcf1{
 		Version: 1.0,
-		Apps: map[string]*App1{
-			"listener": &App1{
-				Context: &Context1{
+		Apps: map[string]*app1{
+			"listener": &app1{
+				Context: &context1{
 					IoThreads: 1,
 					Verbose:   true,
 				},
-				Devices: map[string]*Device1{
-					"main": &Device1{
+				Devices: map[string]*device1{
+					"main": &device1{
 						Type: "zmq_queue",
-						Sockets: map[string]*Socket1{
-							"frontend": &Socket1{
-								Options: &Options1{
+						Sockets: map[string]*socket1{
+							"frontend": &socket1{
+								Options: &options1{
 									Subscribe: []string{
 										"1234 ",
 										"1235 ",
@@ -129,14 +129,14 @@ func TestZdcf1_Update(t *testing.T) {
 								},
 								Bind: []string{"tcp://eth0:5555"},
 							},
-							"backend": &Socket1{
+							"backend": &socket1{
 								Connect: []string{"tcp://eth0:5556"},
 							},
 						},
 					},
 				},
 			},
-			"speaker": &App1{},
+			"speaker": &app1{},
 		},
 	})
 	listener, ok := conf.Apps["listener"]
