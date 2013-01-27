@@ -25,7 +25,7 @@ import (
 	zmq "github.com/alecthomas/gozmq"
 )
 
-// An App is a ZMQ context with a collection of devices.
+// An App is a ØMQ context with a collection of devices.
 type App struct {
 	context zmq.Context
 	name    string
@@ -81,7 +81,7 @@ func NewApp(appName string, sources ...interface{}) (app *App, err error) {
 			typ:     devConf.Type,
 		}
 		for sockName, sockConf := range devConf.Sockets {
-			sockContext := NewSocketContext(devContext, sockName)
+			sockContext := newSocketContext(devContext, sockName)
 			switch sockConf.Type {
 			case "PAIR":
 				sockContext.Type = zmq.PAIR
@@ -130,19 +130,25 @@ func (a *App) Device(name string) (devContext *DeviceContext, ok bool) {
 	return
 }
 
+// ForDevices calls the given function on each device.
 func (a *App) ForDevices(do func(*DeviceContext)) {
 	for _, devContext := range a.devices {
 		do(devContext)
 	}
 }
 
-// Close the App, including its ZMQ context.
+// Close the App, including its ØMQ context.
+//
+// Note that this is constrained by ØMQ's rules for the destruction of its
+// contexts, especially that a call to this method will block until all its
+// devices' sockets have been closed.
 func (a *App) Close() {
 	if a != nil && a.context != nil {
 		a.context.Close()
 	}
 }
 
+// A DeviceContext is intended to be all that a ØMQ device needs to do its job.
 type DeviceContext struct {
 	app     *App
 	name    string
@@ -151,14 +157,18 @@ type DeviceContext struct {
 }
 
 // Type is the name of the device type intended to be instantiated.
+//
+// This is a string that should be translated to a func (or switch'd to a code
+// block) that knows how to create that type of device.
 func (d *DeviceContext) Type() string { return d.typ }
 
-// Device returns the named device or else a second returned value of false.
+// Socket returns the named socket context.
 func (d *DeviceContext) Socket(name string) (sockContext *SocketContext, ok bool) {
 	sockContext, ok = d.sockets[name]
 	return
 }
 
+// OpenSocket creates the named socket.
 func (d *DeviceContext) OpenSocket(name string) (sock zmq.Socket, err error) {
 	var sockContext *SocketContext
 	var ok bool
@@ -169,6 +179,10 @@ func (d *DeviceContext) OpenSocket(name string) (sock zmq.Socket, err error) {
 }
 
 // A SocketContext represents all the information needed to create a socket.
+//
+// All properties that directly affect the construction, binding, and connecting
+// of ØMQ sockets can be set here.  However, a SocketContext must be associated
+// with a DeviceContext in order to do its job i.e. to create and open a socket.
 type SocketContext struct {
 	device        *DeviceContext
 	name          string
@@ -181,7 +195,7 @@ type SocketContext struct {
 	Connect       []string
 }
 
-func NewSocketContext(device *DeviceContext, name string) *SocketContext {
+func newSocketContext(device *DeviceContext, name string) *SocketContext {
 	if device == nil {
 		panic("nil device")
 	}
@@ -198,14 +212,14 @@ func NewSocketContext(device *DeviceContext, name string) *SocketContext {
 // Name returns the name of the socket.
 func (s *SocketContext) Name() string { return s.name }
 
-// Open a socket based on the socket context.
+// Open a ØMQ socket.
 //
 // The socket will be affected by all options provided through the SocketContext,
-// including being bound and/or connected to some addresses.
+// including being bound and/or connected to some addresses: ready to go!
 func (s *SocketContext) Open() (sock zmq.Socket, err error) {
 	var (
 		deviceContext *DeviceContext
-		app        *App
+		app           *App
 	)
 	if deviceContext = s.device; deviceContext == nil {
 		return nil, errors.New("no device context.")

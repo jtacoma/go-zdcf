@@ -16,8 +16,8 @@ A more complex example could enumerate an application's devices and use their
 type names to locate appropriate handlers.  See the examples directory for
 more.
 
-For more about ØMQ or ZDCF see http://rfc.zeromq.org/spec:17 or
-http://www.zeromq.org/, respectively.
+See also ØMQ (http://rfc.zeromq.org/spec:17), ZDCF (http://www.zeromq.org/),
+and gozmq (http://godoc.org/github.com/alecthomas/gozmq).
 
 ## Usage
 
@@ -28,7 +28,7 @@ type App struct {
 }
 ```
 
-An App is a ZMQ context with a collection of devices.
+An App is a ØMQ context with a collection of devices.
 
 #### func  NewApp
 
@@ -42,7 +42,11 @@ Create the named App based on the specified configuration.
 ```go
 func (a *App) Close()
 ```
-Close the App, including its ZMQ context.
+Close the App, including its ØMQ context.
+
+Note that this is constrained by ØMQ's rules for the destruction of its
+contexts, especially that a call to this method will block until all its
+devices' sockets have been closed.
 
 #### func (*App) Device
 
@@ -56,6 +60,7 @@ Device returns the named device or else a second returned value of false.
 ```go
 func (a *App) ForDevices(do func(*DeviceContext))
 ```
+ForDevices calls the given function on each device.
 
 #### type DeviceContext
 
@@ -64,19 +69,21 @@ type DeviceContext struct {
 }
 ```
 
+A DeviceContext is intended to be all that a ØMQ device needs to do its job.
 
 #### func (*DeviceContext) OpenSocket
 
 ```go
 func (d *DeviceContext) OpenSocket(name string) (sock zmq.Socket, err error)
 ```
+OpenSocket creates the named socket.
 
 #### func (*DeviceContext) Socket
 
 ```go
 func (d *DeviceContext) Socket(name string) (sockContext *SocketContext, ok bool)
 ```
-Device returns the named device or else a second returned value of false.
+Socket returns the named socket context.
 
 #### func (*DeviceContext) Type
 
@@ -84,6 +91,9 @@ Device returns the named device or else a second returned value of false.
 func (d *DeviceContext) Type() string
 ```
 Type is the name of the device type intended to be instantiated.
+
+This is a string that should be translated to a func (or switch'd to a code
+block) that knows how to create that type of device.
 
 #### type SocketContext
 
@@ -101,11 +111,9 @@ type SocketContext struct {
 
 A SocketContext represents all the information needed to create a socket.
 
-#### func  NewSocketContext
-
-```go
-func NewSocketContext(device *DeviceContext, name string) *SocketContext
-```
+All properties that directly affect the construction, binding, and connecting of
+ØMQ sockets can be set here. However, a SocketContext must be associated with a
+DeviceContext in order to do its job i.e. to create and open a socket.
 
 #### func (*SocketContext) Name
 
@@ -119,10 +127,10 @@ Name returns the name of the socket.
 ```go
 func (s *SocketContext) Open() (sock zmq.Socket, err error)
 ```
-Open a socket based on the socket context.
+Open a ØMQ socket.
 
 The socket will be affected by all options provided through the SocketContext,
-including being bound and/or connected to some addresses.
+including being bound and/or connected to some addresses: ready to go!
 
 ## Known Issues
 
@@ -130,3 +138,7 @@ including being bound and/or connected to some addresses.
 * when combining configuration sources, any socket options in later sources will completely replace options in previous sources.
 * multi-valued settings (bind, connect, subscribe) in JSON will only accept arrays.
 * configuration validation is mostly absent.
+
+## License
+
+Released under the MIT license, see LICENSE.txt.
