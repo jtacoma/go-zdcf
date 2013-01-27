@@ -62,7 +62,7 @@ func main() {
 		panic(err)
 	}
 	done := make(chan int)
-	listener.ForDevices(func(dev *zdcf.DeviceInfo) {
+	listener.ForDevices(func(dev *zdcf.DeviceContext) {
 		var (
 			err         error
 			front, back zmq.Socket

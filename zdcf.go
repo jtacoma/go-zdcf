@@ -11,7 +11,7 @@ import (
 type App struct {
 	context zmq.Context
 	name    string
-	devices map[string]*DeviceInfo
+	devices map[string]*DeviceContext
 }
 
 // Create the named App based on the specified configuration.
@@ -47,7 +47,7 @@ func NewApp(appName string, sources ...interface{}) (app *App, err error) {
 		app = &App{
 			context: context,
 			name:    appName,
-			devices: map[string]*DeviceInfo{},
+			devices: map[string]*DeviceContext{},
 		}
 	}
 	appConf, ok = conf.Apps[appName]
@@ -56,65 +56,65 @@ func NewApp(appName string, sources ...interface{}) (app *App, err error) {
 	}
 	// TODO: context options (gozmq has no API for this yet)
 	for devName, devConf := range appConf.Devices {
-		devInfo := &DeviceInfo{
+		devContext := &DeviceContext{
 			app:     app,
 			name:    devName,
-			sockets: map[string]*SocketInfo{},
+			sockets: map[string]*SocketContext{},
 			typ:     devConf.Type,
 		}
 		for sockName, sockConf := range devConf.Sockets {
-			sockInfo := NewSocketInfo(devInfo, sockName)
+			sockContext := NewSocketContext(devContext, sockName)
 			switch sockConf.Type {
 			case "PAIR":
-				sockInfo.Type = zmq.PAIR
+				sockContext.Type = zmq.PAIR
 			case "PUB":
-				sockInfo.Type = zmq.PUB
+				sockContext.Type = zmq.PUB
 			case "SUB":
-				sockInfo.Type = zmq.SUB
+				sockContext.Type = zmq.SUB
 			case "REQ":
-				sockInfo.Type = zmq.REQ
+				sockContext.Type = zmq.REQ
 			case "REP":
-				sockInfo.Type = zmq.REP
+				sockContext.Type = zmq.REP
 			case "DEALER":
-				sockInfo.Type = zmq.DEALER
+				sockContext.Type = zmq.DEALER
 			case "ROUTER":
-				sockInfo.Type = zmq.ROUTER
+				sockContext.Type = zmq.ROUTER
 			case "PULL":
-				sockInfo.Type = zmq.PULL
+				sockContext.Type = zmq.PULL
 			case "PUSH":
-				sockInfo.Type = zmq.PUSH
+				sockContext.Type = zmq.PUSH
 			case "XPUB":
-				sockInfo.Type = zmq.XPUB
+				sockContext.Type = zmq.XPUB
 			case "XSUB":
-				sockInfo.Type = zmq.XSUB
+				sockContext.Type = zmq.XSUB
 			case "XREQ":
-				sockInfo.Type = zmq.XREQ
+				sockContext.Type = zmq.XREQ
 			case "XREP":
-				sockInfo.Type = zmq.XREP
+				sockContext.Type = zmq.XREP
 			case "UPSTREAM":
-				sockInfo.Type = zmq.UPSTREAM
+				sockContext.Type = zmq.UPSTREAM
 			case "DOWNSTREAM":
-				sockInfo.Type = zmq.DOWNSTREAM
+				sockContext.Type = zmq.DOWNSTREAM
 			}
 			// TODO: socket options
-			sockInfo.Bind = sockConf.Bind       // TODO: copy
-			sockInfo.Connect = sockConf.Connect // TODO: copy
-			devInfo.sockets[sockName] = sockInfo
+			sockContext.Bind = sockConf.Bind       // TODO: copy
+			sockContext.Connect = sockConf.Connect // TODO: copy
+			devContext.sockets[sockName] = sockContext
 		}
-		app.devices[devName] = devInfo
+		app.devices[devName] = devContext
 	}
 	return app, nil
 }
 
 // Device returns the named device or else a second returned value of false.
-func (a *App) Device(name string) (devInfo *DeviceInfo, ok bool) {
-	devInfo, ok = a.devices[name]
+func (a *App) Device(name string) (devContext *DeviceContext, ok bool) {
+	devContext, ok = a.devices[name]
 	return
 }
 
-func (a *App) ForDevices(do func(*DeviceInfo)) {
-	for _, devInfo := range a.devices {
-		do(devInfo)
+func (a *App) ForDevices(do func(*DeviceContext)) {
+	for _, devContext := range a.devices {
+		do(devContext)
 	}
 }
 
@@ -125,34 +125,34 @@ func (a *App) Close() {
 	}
 }
 
-type DeviceInfo struct {
+type DeviceContext struct {
 	app     *App
 	name    string
 	typ     string
-	sockets map[string]*SocketInfo
+	sockets map[string]*SocketContext
 }
 
 // Type is the name of the device type intended to be instantiated.
-func (d *DeviceInfo) Type() string { return d.typ }
+func (d *DeviceContext) Type() string { return d.typ }
 
 // Device returns the named device or else a second returned value of false.
-func (d *DeviceInfo) Socket(name string) (sockInfo *SocketInfo, ok bool) {
-	sockInfo, ok = d.sockets[name]
+func (d *DeviceContext) Socket(name string) (sockContext *SocketContext, ok bool) {
+	sockContext, ok = d.sockets[name]
 	return
 }
 
-func (d *DeviceInfo) OpenSocket(name string) (sock zmq.Socket, err error) {
-	var sockInfo *SocketInfo
+func (d *DeviceContext) OpenSocket(name string) (sock zmq.Socket, err error) {
+	var sockContext *SocketContext
 	var ok bool
-	if sockInfo, ok = d.sockets[name]; !ok {
+	if sockContext, ok = d.sockets[name]; !ok {
 		return nil, errors.New("no such socket.")
 	}
-	return sockInfo.Open()
+	return sockContext.Open()
 }
 
-// A SocketInfo represents all the information needed to create a socket.
-type SocketInfo struct {
-	device        *DeviceInfo
+// A SocketContext represents all the information needed to create a socket.
+type SocketContext struct {
+	device        *DeviceContext
 	name          string
 	Type          zmq.SocketType
 	IntOptions    map[zmq.IntSocketOption]int
@@ -163,11 +163,11 @@ type SocketInfo struct {
 	Connect       []string
 }
 
-func NewSocketInfo(device *DeviceInfo, name string) *SocketInfo {
+func NewSocketContext(device *DeviceContext, name string) *SocketContext {
 	if device == nil {
 		panic("nil device")
 	}
-	return &SocketInfo{
+	return &SocketContext{
 		device:        device,
 		name:          name,
 		IntOptions:    map[zmq.IntSocketOption]int{},
@@ -177,22 +177,23 @@ func NewSocketInfo(device *DeviceInfo, name string) *SocketInfo {
 	}
 }
 
-func (s *SocketInfo) Name() string { return s.name }
+// Name returns the name of the socket.
+func (s *SocketContext) Name() string { return s.name }
 
-// Open a socket based on the socket info.
+// Open a socket based on the socket context.
 //
-// The socket will be affected by all options provided through the SocketInfo,
+// The socket will be affected by all options provided through the SocketContext,
 // including being bound and/or connected to some addresses.
-func (s *SocketInfo) Open() (sock zmq.Socket, err error) {
+func (s *SocketContext) Open() (sock zmq.Socket, err error) {
 	var (
-		deviceInfo *DeviceInfo
+		deviceContext *DeviceContext
 		app        *App
 	)
-	if deviceInfo = s.device; deviceInfo == nil {
-		return nil, errors.New("no device info.")
+	if deviceContext = s.device; deviceContext == nil {
+		return nil, errors.New("no device context.")
 	}
-	if app = deviceInfo.app; app == nil {
-		return nil, errors.New("device info has no app.")
+	if app = deviceContext.app; app == nil {
+		return nil, errors.New("device context has no app.")
 	}
 	if sock, err = app.context.NewSocket(s.Type); err != nil {
 		return nil, errors.New(fmt.Sprintf("could not create socket: %s", err.Error()))

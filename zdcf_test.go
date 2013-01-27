@@ -52,11 +52,11 @@ func TestZdcf(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 	defer frontend.Close()
-	backendInfo, ok := main.Socket("backend")
+	backendContext, ok := main.Socket("backend")
 	if !ok {
-		t.Fatalf("failed to find socket info: backend")
+		t.Fatalf("failed to find socket context: backend")
 	}
-	backend, err := backendInfo.Open()
+	backend, err := backendContext.Open()
 	if err != nil {
 		t.Fatalf("failed to open socket: backend")
 	}

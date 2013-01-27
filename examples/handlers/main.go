@@ -34,7 +34,7 @@ var defaults = &zdcf.Zdcf1{
 	},
 }
 
-func EchoService(dev *zdcf.DeviceInfo) {
+func EchoService(dev *zdcf.DeviceContext) {
 	if front, err := dev.OpenSocket("frontend"); err != nil {
 		panic(err)
 	} else {
@@ -49,7 +49,7 @@ func EchoService(dev *zdcf.DeviceInfo) {
 	}
 }
 
-func EchoClientOnce(dev *zdcf.DeviceInfo) {
+func EchoClientOnce(dev *zdcf.DeviceContext) {
 	if back, err := dev.OpenSocket("backend"); err != nil {
 		panic(err)
 	} else {
@@ -66,7 +66,7 @@ func EchoClientOnce(dev *zdcf.DeviceInfo) {
 
 var done = make(chan int)
 
-var handlers = map[string]func(*zdcf.DeviceInfo){
+var handlers = map[string]func(*zdcf.DeviceContext){
 	"echo_service": EchoService,
 	"echo_once":    EchoClientOnce,
 }
@@ -76,7 +76,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	listener.ForDevices(func(dev *zdcf.DeviceInfo) {
+	listener.ForDevices(func(dev *zdcf.DeviceContext) {
 		if run, ok := handlers[dev.Type()]; ok {
 			go run(dev)
 		}
