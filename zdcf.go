@@ -14,8 +14,8 @@
 // type names to locate appropriate handlers.  See the examples directory for
 // more.
 //
-// To learn about ØMQ or ZDCF see http://rfc.zeromq.org/spec:17 or
-// http://www.zeromq.org/, respectively.
+// See also ØMQ (http://rfc.zeromq.org/spec:17), ZDCF (http://www.zeromq.org/),
+// and gozmq (http://godoc.org/github.com/alecthomas/gozmq).
 package gozdcf
 
 import (
