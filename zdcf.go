@@ -1,4 +1,22 @@
-package zdcf
+// This package provides methods for consuming ZDCF in your ØMQ applications.
+//
+//     app := zdcf.NewApp("myapp", defaults, fileBytes)
+//     defer app.Close()
+//     echo := zdcf.Device("echo")
+//     front := echo.OpenSocket("frontend")
+//     defer front.Close()
+//     for {
+//         msg := front.Recv()
+//         front.Send(msg)
+//     }
+// 
+// A more complex example could enumerate an application's devices and use their
+// type names to locate appropriate handlers.  See the examples directory for
+// more.
+//
+// For more about ØMQ or ZDCF see http://rfc.zeromq.org/spec:17 or
+// http://www.zeromq.org/, respectively.
+package gozdcf
 
 import (
 	"errors"

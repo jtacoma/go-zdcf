@@ -1,4 +1,4 @@
-package zdcf
+package gozdcf
 
 import (
 	"encoding/json"
