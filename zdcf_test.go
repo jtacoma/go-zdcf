@@ -62,3 +62,34 @@ func TestZdcf(t *testing.T) {
 	}
 	backend.Close()
 }
+
+func ExampleNewApp() {
+	// This is a very simplified example that just shows the gist and does
+	// not check for errors.
+	defaults := `{
+		"version": 1.0001,
+		"apps": {
+			"myapp": {
+				"devices": {
+					"echo": {
+						"sockets": {
+							"frontend": {
+								"type": "REP",
+								"bind": ["tcp://eth0:5555"]
+							}
+						}
+					}
+				}
+			}
+		}
+	}`
+	app, _ := NewApp("myapp", defaults)
+	defer app.Close()
+	echo, _ := app.Device("echo")
+	front, _ := echo.OpenSocket("frontend")
+	defer front.Close()
+	for {
+		msg, _ := front.Recv(0)
+		front.Send(msg, 0)
+	}
+}
