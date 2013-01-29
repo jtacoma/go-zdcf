@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/jtacoma/gozdcf/zpl"
 )
 
 type zdcf1 struct {
@@ -48,16 +50,19 @@ type options1 struct {
 
 func unmarshalZdcf1(bytes []byte) (*zdcf1, error) {
 	var conf zdcf1
-	err := json.Unmarshal(bytes, &conf)
-	if err != nil {
-		return nil, err
+	err_json := json.Unmarshal(bytes, &conf)
+	if err_json != nil {
+		err_zpl := zpl.Unmarshal(bytes, &conf)
+		if err_zpl != nil {
+			return nil, fmt.Errorf("Failed to parse as JSON (%s) or as ZPL (%s).", err_json, err_zpl)
+		}
 	}
 	if conf.Version < 1 || 2 <= conf.Version {
 		return nil, errors.New(fmt.Sprintf(
 			"unsupported ZDCF version: %f",
 			conf.Version))
 	}
-	return &conf, err
+	return &conf, nil
 }
 
 func (conf *zdcf1) update(other *zdcf1) error {

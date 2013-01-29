@@ -31,8 +31,13 @@ func splitLines(blob []byte) [][]byte {
 	})
 }
 
-func Unmarshal(src []byte, dst *Section) error {
-	ancestry := []*Section{dst}
+func Unmarshal(src []byte, dst interface{}) error {
+	switch dst.(type) {
+	case *Section:
+	default:
+		return fmt.Errorf("unsupported destination type: %T", dst)
+	}
+	ancestry := []*Section{dst.(*Section)}
 	for lineno, line := range splitLines(src) {
 		if inline := bytes.IndexByte(line, '#'); inline >= 0 {
 			line = line[:inline]
