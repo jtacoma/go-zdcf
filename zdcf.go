@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package provides methods for consuming ZDCF in your ØMQ applications.
-//
-// See also ØMQ (http://rfc.zeromq.org/spec:17), ZDCF (http://www.zeromq.org/),
-// and gozmq (http://godoc.org/github.com/alecthomas/gozmq).
+// This package provides methods for consuming ZeroMQ Device Configuration Files
+// (ZDCF, http://rfc.zeromq.org/spec:17) for ØMQ (ZeroMQ, ZMQ,
+// http://www.zeromq.org/) applications that use gozmq
+// (http://godoc.org/github.com/alecthomas/gozmq).
 //
 package gozdcf
 
