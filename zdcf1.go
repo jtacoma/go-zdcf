@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jtacoma/gozdcf/zpl"
+	zpl "github.com/jtacoma/gozpl"
 )
 
 type zdcf1 struct {
@@ -32,7 +32,7 @@ type socket1 struct {
 	Type    string    `type`
 	Options *options1 `option`
 	Bind    []string  `bind`
-	Connect []string  `bind`
+	Connect []string  `connect`
 }
 
 type options1 struct {
@@ -54,7 +54,7 @@ func unmarshalZdcf1(bytes []byte) (*zdcf1, error) {
 	if err_json != nil {
 		err_zpl := zpl.Unmarshal(bytes, &conf)
 		if err_zpl != nil {
-			return nil, fmt.Errorf("Failed to parse as JSON (%s) or as ZPL (%s).", err_json, err_zpl)
+			return nil, fmt.Errorf("failed to parse as JSON (%s) or as ZPL (%s).", err_json, err_zpl)
 		}
 	}
 	if conf.Version < 1 || 2 <= conf.Version {
