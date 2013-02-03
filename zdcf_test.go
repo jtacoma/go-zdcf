@@ -65,24 +65,32 @@ func TestZdcf(t *testing.T) {
 
 func ExampleNewApp() {
 	// This is a very simplified example that just shows the gist and does
-	// not check for errors.
+	// not check for errors.  Here, we set defaults using JSON to express ZDCF
+	// 1.0:
 	defaults := `{
-		"version": 1.0001,
-		"apps": {
-			"myapp": {
-				"devices": {
-					"echo": {
-						"sockets": {
-							"frontend": {
-								"type": "REP",
-								"bind": ["tcp://eth0:5555"]
-							}
-						}
-					}
-				}
-			}
-		}
-	}`
+        "version": 1.0001,
+        "apps": {
+            "myapp": {
+                "devices": {
+                    "echo": {
+                        "sockets": {
+                            "frontend": {
+                                "type": "REP",
+                                "bind": ["tcp://eth0:5555"]
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }`
+	// We can get the same results using ZPL to express ZDCF 0.1:
+	defaults = `
+version = 0.1
+echo
+    frontend
+        type = REP
+        bind = tcp://eth0:5555`
 	app, _ := NewApp("myapp", defaults)
 	defer app.Close()
 	echo, _ := app.Device("echo")

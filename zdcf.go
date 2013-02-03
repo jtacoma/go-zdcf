@@ -32,7 +32,11 @@ func NewApp(appName string, sources ...interface{}) (app *App, err error) {
 		case string:
 			next, err = unmarshalZdcf1([]byte(source.(string)))
 			if err != nil {
-				return nil, err
+				conf0, err0 := unmarshalZdcf0([]byte(source.(string)))
+				if err0 != nil {
+					return nil, err
+				}
+				conf = conf0.zdcf1(appName)
 			}
 		case *zdcf1:
 			next = source.(*zdcf1)
