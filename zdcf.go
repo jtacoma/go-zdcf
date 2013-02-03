@@ -1,3 +1,7 @@
+// Copyright 2013 Joshua Tacoma. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // This package provides methods for consuming ZDCF in your ØMQ applications.
 //
 // See also ØMQ (http://rfc.zeromq.org/spec:17), ZDCF (http://www.zeromq.org/),
