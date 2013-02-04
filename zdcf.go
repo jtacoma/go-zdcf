@@ -12,19 +12,62 @@ package gozdcf
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	zmq "github.com/alecthomas/gozmq"
 )
 
-// An App is a ØMQ context with a collection of devices.
-type App struct {
+func ListenAndServe(appName string, sources ...interface{}) error {
+	var (
+		wg  sync.WaitGroup
+		app *app
+		err error
+	)
+	app, err = newApp(appName, sources...)
+	if err != nil {
+		return fmt.Errorf("while creating app: %s", err)
+	}
+	defer app.Close()
+	var runners []func()
+	app.ForDevices(func(ctx *DeviceContext) {
+		var (
+			dev func(*DeviceContext)
+			ok  bool
+		)
+		if err == nil {
+			if dev, ok = lookupDevice(ctx.Type()); ok {
+				runners = append(runners, func() {
+					dev(ctx)
+					wg.Done()
+				})
+			} else {
+				err = fmt.Errorf("unregistered device type: %s", ctx.Type())
+			}
+		}
+	})
+	if err != nil {
+		return err
+	}
+	if len(runners) == 0 {
+		return fmt.Errorf("no devices loaded.")
+	}
+	for _, run := range runners {
+		wg.Add(1)
+		go run()
+	}
+	wg.Wait()
+	return nil
+}
+
+// An app is a ØMQ context with a collection of devices.
+type app struct {
 	context zmq.Context
 	name    string
 	devices map[string]*DeviceContext
 }
 
-// Create the named App based on the specified configuration.
-func NewApp(appName string, sources ...interface{}) (app *App, err error) {
+// Create the named app based on the specified configuration.
+func newApp(appName string, sources ...interface{}) (a *app, err error) {
 	var (
 		conf    *zdcf1
 		appConf *app1
@@ -38,9 +81,10 @@ func NewApp(appName string, sources ...interface{}) (app *App, err error) {
 			if err != nil {
 				conf0, err0 := unmarshalZdcf0([]byte(source.(string)))
 				if err0 != nil {
-					return nil, err
+					return nil, err0
 				}
-				conf = conf0.zdcf1(appName)
+				next = conf0.zdcf1(appName)
+				err = nil
 			}
 		case *zdcf1:
 			next = source.(*zdcf1)
@@ -57,7 +101,7 @@ func NewApp(appName string, sources ...interface{}) (app *App, err error) {
 	if context, err := zmq.NewContext(); err != nil {
 		return nil, err
 	} else {
-		app = &App{
+		a = &app{
 			context: context,
 			name:    appName,
 			devices: map[string]*DeviceContext{},
@@ -70,9 +114,9 @@ func NewApp(appName string, sources ...interface{}) (app *App, err error) {
 	// TODO: context options (gozmq has no API for this yet)
 	for devName, devConf := range appConf.Devices {
 		devContext := &DeviceContext{
-			app:     app,
+			app:     a,
 			name:    devName,
-			sockets: map[string]*SocketContext{},
+			sockets: map[string]*socketContext{},
 			typ:     devConf.Type,
 		}
 		for sockName, sockConf := range devConf.Sockets {
@@ -114,30 +158,24 @@ func NewApp(appName string, sources ...interface{}) (app *App, err error) {
 			sockContext.Connect = sockConf.Connect // TODO: copy
 			devContext.sockets[sockName] = sockContext
 		}
-		app.devices[devName] = devContext
+		a.devices[devName] = devContext
 	}
-	return app, nil
-}
-
-// Device returns the named device or else a second returned value of false.
-func (a *App) Device(name string) (devContext *DeviceContext, ok bool) {
-	devContext, ok = a.devices[name]
-	return
+	return a, nil
 }
 
 // ForDevices calls the given function on each device.
-func (a *App) ForDevices(do func(*DeviceContext)) {
+func (a *app) ForDevices(do func(*DeviceContext)) {
 	for _, devContext := range a.devices {
 		do(devContext)
 	}
 }
 
-// Close the App, including its ØMQ context.
+// Close the app, including its ØMQ context.
 //
 // Note that this is constrained by ØMQ's rules for the destruction of its
 // contexts, especially that a call to this method will block until all its
 // devices' sockets have been closed.
-func (a *App) Close() {
+func (a *app) Close() {
 	if a != nil && a.context != nil {
 		a.context.Close()
 	}
@@ -145,10 +183,10 @@ func (a *App) Close() {
 
 // A DeviceContext is intended to be all that a ØMQ device needs to do its job.
 type DeviceContext struct {
-	app     *App
+	app     *app
 	name    string
 	typ     string
-	sockets map[string]*SocketContext
+	sockets map[string]*socketContext
 }
 
 // Type is the name of the device type intended to be instantiated.
@@ -157,15 +195,9 @@ type DeviceContext struct {
 // block) that knows how to create that type of device.
 func (d *DeviceContext) Type() string { return d.typ }
 
-// Socket returns the named socket context.
-func (d *DeviceContext) Socket(name string) (sockContext *SocketContext, ok bool) {
-	sockContext, ok = d.sockets[name]
-	return
-}
-
-// OpenSocket creates the named socket.
-func (d *DeviceContext) OpenSocket(name string) (sock zmq.Socket, err error) {
-	var sockContext *SocketContext
+// Open creates and binds/connects the named socket.
+func (d *DeviceContext) Open(name string) (sock zmq.Socket, err error) {
+	var sockContext *socketContext
 	var ok bool
 	if sockContext, ok = d.sockets[name]; !ok {
 		return nil, errors.New("no such socket.")
@@ -173,12 +205,21 @@ func (d *DeviceContext) OpenSocket(name string) (sock zmq.Socket, err error) {
 	return sockContext.Open()
 }
 
-// A SocketContext represents all the information needed to create a socket.
+// MustOpen creates and binds/connects the named socket or else panics.
+func (d *DeviceContext) MustOpen(name string) zmq.Socket {
+	sock, err := d.Open(name)
+	if err != nil {
+		panic(err.Error())
+	}
+	return sock
+}
+
+// A socketContext represents all the information needed to create a socket.
 //
 // All properties that directly affect the construction, binding, and connecting
-// of ØMQ sockets can be set here.  However, a SocketContext must be associated
+// of ØMQ sockets can be set here.  However, a socketContext must be associated
 // with a DeviceContext in order to do its job i.e. to create and open a socket.
-type SocketContext struct {
+type socketContext struct {
 	device        *DeviceContext
 	name          string
 	Type          zmq.SocketType
@@ -190,11 +231,11 @@ type SocketContext struct {
 	Connect       []string
 }
 
-func newSocketContext(device *DeviceContext, name string) *SocketContext {
+func newSocketContext(device *DeviceContext, name string) *socketContext {
 	if device == nil {
 		panic("nil device")
 	}
-	return &SocketContext{
+	return &socketContext{
 		device:        device,
 		name:          name,
 		IntOptions:    map[zmq.IntSocketOption]int{},
@@ -205,26 +246,31 @@ func newSocketContext(device *DeviceContext, name string) *SocketContext {
 }
 
 // Name returns the name of the socket.
-func (s *SocketContext) Name() string { return s.name }
+func (s *socketContext) Name() string { return s.name }
 
 // Open a ØMQ socket.
 //
-// The socket will be affected by all options provided through the SocketContext,
+// The socket will be affected by all options provided through the socketContext,
 // including being bound and/or connected to some addresses: ready to go!
-func (s *SocketContext) Open() (sock zmq.Socket, err error) {
+func (s *socketContext) Open() (sock zmq.Socket, err error) {
 	var (
-		deviceContext *DeviceContext
-		app           *App
+		DeviceContext *DeviceContext
+		app           *app
 	)
-	if deviceContext = s.device; deviceContext == nil {
+	if DeviceContext = s.device; DeviceContext == nil {
 		return nil, errors.New("no device context.")
 	}
-	if app = deviceContext.app; app == nil {
+	if app = DeviceContext.app; app == nil {
 		return nil, errors.New("device context has no app.")
 	}
 	if sock, err = app.context.NewSocket(s.Type); err != nil {
 		return nil, errors.New(fmt.Sprintf("could not create socket: %s", err.Error()))
 	}
+	defer func(s zmq.Socket) {
+		if err != nil {
+			s.Close()
+		}
+	}(sock)
 	for opt, val := range s.IntOptions {
 		if err = sock.SetSockOptInt(opt, val); err != nil {
 			return nil, errors.New(fmt.Sprintf("could not set option %d = %v : %s",

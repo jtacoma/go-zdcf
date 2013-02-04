@@ -5,11 +5,13 @@
 package gozdcf
 
 import (
+	"fmt"
 	"testing"
+	"time"
 )
 
 func TestZdcf(t *testing.T) {
-	raw := []byte(`{
+	conf := `{
 		"version": 1.0001,
 		"apps": {
 			"listener": {
@@ -19,89 +21,113 @@ func TestZdcf(t *testing.T) {
 				},
 				"devices": {
 					"main": {
-						"type": "zmq_queue",
+						"type": "zmq_streamer",
 						"sockets": {
 							"frontend": {
-								"type": "SUB",
+								"type": "PULL",
 								"option": {
 									"hwm": 1000,
 									"swap": 25000000
 								},
-								"bind": ["tcp://eth0:5555"]
+								"bind": ["tcp://127.0.0.1:5555"]
 							},
 							"backend": {
-								"bind": ["tcp://eth0:5556"]
+								"type": "PUSH",
+								"bind": ["tcp://127.0.0.1:5556"]
+							}
+						}
+					},
+					"sender": {
+						"type": "test_send",
+						"sockets": {
+							"out": {
+								"type": "PUSH",
+								"connect": ["tcp://127.0.0.1:5555"]
+							}
+						}
+					},
+					"receiver": {
+						"type": "test_recv",
+						"sockets": {
+							"in": {
+								"type": "PULL",
+								"connect": ["tcp://127.0.0.1:5556"]
 							}
 						}
 					}
 				}
 			}
 		}
-	}`)
-	conf, err := unmarshalZdcf1(raw)
-	if err != nil {
-		t.Fatalf("failed to unmarshal: %s", err)
+	}`
+	var (
+		received_err     = make(chan error)
+		received_message = make(chan string)
+	)
+	RegisterFunc("test_send", func(ctx *DeviceContext) {
+		out := ctx.MustOpen("out")
+		defer out.Close()
+		out.Send([]byte("PASS"), 0)
+	})
+	RegisterFunc("test_recv", func(ctx *DeviceContext) {
+		in := ctx.MustOpen("in")
+		defer in.Close()
+		msg, err := in.Recv(0)
+		if err != nil {
+			received_err <- err
+		} else {
+			received_message <- string(msg)
+		}
+	})
+	go func() {
+		err := ListenAndServe("listener", conf)
+		if err != nil {
+			t.Fatalf("failed to start: %s", err)
+		}
+	}()
+	select {
+	case err := <-received_err:
+		t.Fatalf("received error: %s", err)
+	case <-received_message:
+		// :-)
+	case <-time.After(1 * time.Second):
+		t.Fatalf("timed out :-(")
 	}
-	app, err := NewApp("listener", conf)
-	if err != nil {
-		t.Fatalf("failed to create app: %s", err)
-	}
-	defer app.Close()
-	main, ok := app.Device("main")
-	if !ok {
-		t.Fatalf("failed to create device: main")
-	}
-	frontend, err := main.OpenSocket("frontend")
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
-	defer frontend.Close()
-	backendContext, ok := main.Socket("backend")
-	if !ok {
-		t.Fatalf("failed to find socket context: backend")
-	}
-	backend, err := backendContext.Open()
-	if err != nil {
-		t.Fatalf("failed to open socket: backend")
-	}
-	backend.Close()
 }
 
-func ExampleNewApp() {
-	// This is a very simplified example that just shows the gist and does
-	// not check for errors.  Here, we set defaults using JSON to express ZDCF
-	// 1.0:
-	defaults := `{
-        "version": 1.0001,
-        "apps": {
-            "myapp": {
-                "devices": {
-                    "echo": {
-                        "sockets": {
-                            "frontend": {
-                                "type": "REP",
-                                "bind": ["tcp://eth0:5555"]
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }`
-	// We can get the same results using ZPL to express ZDCF 0.1:
-	defaults = `
+func Example() {
+	defaults := `
 version = 0.1
-echo
-    frontend
+echo1
+    type = echo_once
+    cliff
         type = REP
-        bind = tcp://eth0:5555`
-	app, _ := NewApp("myapp", defaults)
-	defer app.Close()
-	echo, _ := app.Device("echo")
-	front, _ := echo.OpenSocket("frontend")
-	defer front.Close()
-	for {
-		msg, _ := front.Recv(0)
-		front.Send(msg, 0)
+        bind = tcp://127.0.0.1:5557
+
+yodel42
+    type = yodel_once
+    vocals
+        type = REQ
+        connect = tcp://127.0.0.1:5557
+`
+	RegisterFunc("echo_once", func(ctx *DeviceContext) {
+		cliff := ctx.MustOpen("cliff")
+		defer cliff.Close()
+		msg, err := cliff.Recv(0)
+		if err != nil {
+			panic(err)
+		}
+		cliff.Send(msg, 0)
+	})
+	RegisterFunc("yodel_once", func(ctx *DeviceContext) {
+		vocals := ctx.MustOpen("vocals")
+		defer vocals.Close()
+		vocals.Send([]byte("YOOOODEL!"), 0)
+		msg, _ := vocals.Recv(0)
+		fmt.Println(string(msg))
+	})
+	err := ListenAndServe("myapp", defaults)
+	if err != nil {
+		fmt.Println("error:", err.Error())
 	}
+	// Output: YOOOODEL!
 }
