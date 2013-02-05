@@ -75,11 +75,14 @@ func newApp(appName string, sources ...interface{}) (a *app, err error) {
 	)
 	for _, source := range sources {
 		var next *zdcf1
+		if _, ok := source.(string); ok {
+			source = []byte(source.(string))
+		}
 		switch source.(type) {
-		case string:
-			next, err = unmarshalZdcf1([]byte(source.(string)))
+		case []byte:
+			next, err = unmarshalZdcf1(source.([]byte))
 			if err != nil {
-				conf0, err0 := unmarshalZdcf0([]byte(source.(string)))
+				conf0, err0 := unmarshalZdcf0(source.([]byte))
 				if err0 != nil {
 					return nil, err0
 				}
