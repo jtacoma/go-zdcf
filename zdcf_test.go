@@ -63,12 +63,12 @@ func TestZdcf(t *testing.T) {
 		received_err     = make(chan error)
 		received_message = make(chan string)
 	)
-	RegisterFunc("test_send", func(ctx *DeviceContext) {
+	DeviceFunc("test_send", func(ctx *DeviceContext) {
 		out := ctx.MustOpen("out")
 		defer out.Close()
 		out.Send([]byte("PASS"), 0)
 	})
-	RegisterFunc("test_recv", func(ctx *DeviceContext) {
+	DeviceFunc("test_recv", func(ctx *DeviceContext) {
 		in := ctx.MustOpen("in")
 		defer in.Close()
 		msg, err := in.Recv(0)
@@ -109,7 +109,7 @@ yodel42
         type = REQ
         connect = tcp://127.0.0.1:5557
 `
-	RegisterFunc("echo_once", func(ctx *DeviceContext) {
+	DeviceFunc("echo_once", func(ctx *DeviceContext) {
 		cliff := ctx.MustOpen("cliff")
 		defer cliff.Close()
 		msg, err := cliff.Recv(0)
@@ -118,7 +118,7 @@ yodel42
 		}
 		cliff.Send(msg, 0)
 	})
-	RegisterFunc("yodel_once", func(ctx *DeviceContext) {
+	DeviceFunc("yodel_once", func(ctx *DeviceContext) {
 		vocals := ctx.MustOpen("vocals")
 		defer vocals.Close()
 		vocals.Send([]byte("YOOOODEL!"), 0)

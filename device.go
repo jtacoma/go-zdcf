@@ -11,7 +11,7 @@ import (
 	zmq "github.com/alecthomas/gozmq"
 )
 
-func RegisterFunc(deviceTypePattern string, device func(*DeviceContext)) error {
+func DeviceFunc(deviceTypePattern string, device func(*DeviceContext)) error {
 	if pattern, err := regexp.Compile(deviceTypePattern); err != nil {
 		return err
 	} else {
