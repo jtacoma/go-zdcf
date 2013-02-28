@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package gozdcf
+package zdcf
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
 
-	zpl "github.com/jtacoma/gozpl"
+	zpl "github.com/jtacoma/go-zpl"
 )
 
 type zdcf1 struct {

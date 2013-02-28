@@ -7,7 +7,7 @@
 // http://www.zeromq.org/) applications that use gozmq
 // (http://godoc.org/github.com/alecthomas/gozmq).
 //
-package gozdcf
+package zdcf
 
 import (
 	"errors"

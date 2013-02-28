@@ -1,4 +1,4 @@
-# gozdcf
+# go-zdcf
 
 This package provides methods for consuming ZeroMQ Device Configuration Files
 (ZDCF, http://rfc.zeromq.org/spec:17) for ØMQ (ZeroMQ, ZMQ,
@@ -7,7 +7,7 @@ http://www.zeromq.org/) applications that use gozmq
 
 ## Documentation
 
-See godoc or http://godoc.org/github.com/jtacoma/gozdcf
+See godoc or http://godoc.org/github.com/jtacoma/go-zdcf
 
 ## Known Issues
 
