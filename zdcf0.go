@@ -9,7 +9,7 @@ import (
 	"errors"
 	"fmt"
 
-	zpl "github.com/jtacoma/go-zpl"
+	"github.com/jtacoma/go-zpl"
 )
 
 type zdcf0 struct {
